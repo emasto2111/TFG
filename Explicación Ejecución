@@ -1,1 +1,2 @@
-
+Para la ejecución completa del código, se deben instalar todas las librerias necesarias, se incluyen al principio de cada uno de los scripts. 
+Posteriormente debe ejecutarse el script de Algoritmos.R que es el encargado de generar los datos que se utilizarán en Resultados.rmd, para poder obtenerlos resultados del código.
