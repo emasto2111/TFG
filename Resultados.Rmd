@@ -1,0 +1,469 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+
+En esta sección se mostrarán los resultados obtenidos para la discusión de los algoritmos. Para la representación de los resultados se utilizarán cuatro de los cinco métodos con todos los genes, mientras que para los cinco métodos hemos seleccionado un conjunto de datos menor. Esto es debido a la gran ocupación de memoria que genera el método MCL, para poder compararlo se ha seleccionado un subconjunto de 2000 genes. Posteriormente, en el apartado de resultados se comentarán cada uno de los diferentes apartados que se muestran a continuación.  
+
+```{r setup, include=FALSE}
+### Directorio
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/home/ema/TFG/CodigoTFG/Recuentos")
+#knitr::opts_knit$set(root.dir = "/home/ema/TFG/CodigoTFG/Memoria")
+#knitr::opts_knit$set(root.dir = "/home/ema/TFG/CodigoTFG/Tiempos")
+library(dplyr)
+library(FinCal)
+require(DOSE)
+library(clusterProfiler)
+library(fossil)
+require(org.Mm.eg.db)
+library(gplots)
+require(devtools)
+library(ggpubr)
+library(tidyverse)
+library(DT)
+library(kableExtra)
+#library(reshape)
+#if(!require(devtools)) install.packages("devtools")
+#devtools::install_github("kassambara/ggpubr")
+```
+
+
+```{r, include=FALSE}
+### Lectura de datos completos
+geneWGCNA<- read.csv("geneWGCNAall",header = TRUE,row.names = 1)
+geneFUZZY<- read.csv("geneFUZZYall",header = TRUE,row.names = 1)
+geneKMEDOIDS<- read.csv("geneKMedoidsall",header = TRUE,row.names = 1)
+geneDbScan<- read.csv("geneDbScanall",header = TRUE,row.names = 1)
+```
+
+```{r include=FALSE}
+### Lectura de datos con 2000 genes
+genewgcna<- read.csv("geneWGCNA2000",header = TRUE,row.names = 1)
+genemcl<- read.csv("geneMCL2000",header = TRUE,row.names = 1)
+genemcl <- genemcl[,c(2,1)]
+genefuzzy<- read.csv("geneFuzzy2000",header = TRUE,row.names = 1)
+genekmedoids<- read.csv("geneKMedoids2000",header = TRUE,row.names = 1)
+genedbscan<- read.csv("geneDbScan2000",header = TRUE,row.names = 1)
+```
+
+## RAND INDEX.
+
+Comparamos el índice Rand obtenido por cada par de métodos utilizando heat.map. Obtendremos un mapa de colores, el color oscuro muestra una alta semejanza, mientras que los claros muestra poca semejanza. 
+
+```{r  include=FALSE}
+MEDOIDS<- as.numeric(as.character(geneKMEDOIDS$clust.data.cluster)) 
+WGCNA<- c('1',rand.index(geneWGCNA$net.colors,geneFUZZY$res.fcm.cluster),rand.index(geneWGCNA$net.colors,MEDOIDS),rand.index(geneWGCNA$net.colors,geneDbScan$cl.cluster))
+FUZZY<-  c(rand.index(geneFUZZY$res.fcm.cluster,geneWGCNA$net.colors),'1',rand.index(geneFUZZY$res.fcm.cluster,MEDOIDS),rand.index(geneFUZZY$res.fcm.cluster,geneDbScan$cl.cluster))
+KMEDOIDS<-  c(rand.index(MEDOIDS,geneWGCNA$net.colors),rand.index(geneFUZZY$res.fcm.cluster,MEDOIDS),'1',rand.index(geneDbScan$cl.cluster,MEDOIDS))
+DbScan<-  c(rand.index(geneDbScan$cl.cluster,geneWGCNA$net.colors),rand.index(geneDbScan$cl.cluster,geneFUZZY$res.fcm.cluster),rand.index(geneDbScan$cl.cluster,MEDOIDS),'1')
+
+rand_index<-data.frame(WGCNA,FUZZY,KMEDOIDS,DbScan)
+rownames(rand_index)<-colnames(rand_index)
+
+```
+
+```{r include=FALSE}
+MEDOIDS2<- as.numeric(as.character(genekmedoids$clust.data.cluster)) 
+WGCNA2<- c('1', rand.index(genewgcna$net.colors,genemcl$modules.Cluster),rand.index(genewgcna$net.colors,genefuzzy$res.fcm.cluster),rand.index(genewgcna$net.colors,MEDOIDS2),rand.index(genewgcna$net.colors,genedbscan$cl.cluster))
+MCL2<-  c(rand.index(genemcl$modules.Cluster,genewgcna$net.colors),'1',rand.index(genemcl$modules.Cluster,genefuzzy$res.fcm.cluster),rand.index(genemcl$modules.Cluster,MEDOIDS2),rand.index(genemcl$modules.Cluster,genedbscan$cl.cluster))
+FUZZY2<-  c(rand.index(genefuzzy$res.fcm.cluster,genewgcna$net.colors),rand.index(genemcl$modules.Cluster,genefuzzy$res.fcm.cluster),'1',rand.index(genefuzzy$res.fcm.cluster,MEDOIDS2),rand.index(genefuzzy$res.fcm.cluster,genedbscan$cl.cluster))
+KMEDOIDS2<-  c(rand.index(MEDOIDS2,genewgcna$net.colors),rand.index(genemcl$modules.Cluster,MEDOIDS2),rand.index(genefuzzy$res.fcm.cluster,MEDOIDS2),'1',rand.index(genedbscan$cl.cluster,MEDOIDS2))
+DbScan2<-  c(rand.index(genedbscan$cl.cluster,genewgcna$net.colors),rand.index(genedbscan$cl.cluster,genemcl$modules.Cluster),rand.index(genedbscan$cl.cluster,genefuzzy$res.fcm.cluster),rand.index(genedbscan$cl.cluster,MEDOIDS2),'1')
+
+rand_index2<-data.frame(WGCNA2,MCL2,FUZZY2,KMEDOIDS2,DbScan2)
+rownames(rand_index2)<-colnames(rand_index2)
+
+```
+
+### Rand.Index para todo el conjunto de datos.
+```{r echo=FALSE}
+m_rand_index <- as.matrix(sapply(rand_index, as.numeric))
+rownames(m_rand_index)<- colnames(m_rand_index)
+heatmap(m_rand_index, Rowv= NA, Colv = NA, scale = "none",cexRow = 1, cexCol = 1)
+```
+
+
+
+###  Rand.Index para un conjunto de 2000 genes.
+```{r echo=FALSE}
+m_rand_index2 <- as.matrix(sapply(rand_index2, as.numeric))
+rownames(m_rand_index2)<- colnames(m_rand_index2)
+heatmap(m_rand_index2, Rowv= NA, Colv = NA, scale = "none",cexRow = 1, cexCol = 0.9)
+```
+
+
+## Tabla comparativa.
+
+Tabla comparativa de los resultados obtenidos por los métodos tras se ejecución con los datos. Veremos la media, la desviación estándar y el coeficiente de variación. 
+
+```{r include=FALSE}
+meanCluster <- function(data,cl,val) {
+a<-c()
+for (i in val){
+  a<- c(sum(with(data,cl==i)),a)}
+  return(mean(a))
+}
+
+sdCluster <- function(data,cl,val){
+a<-c()
+for (i in val){
+  a<- c(sum(with(data,cl==i)),a)}
+  return(sd(a))
+}
+
+coefVarCluster<- function(data,cl,val){
+a<-c()
+for (i in val){
+  a<- c(sum(with(data,cl==i)),a)}
+  return(coefficient.variation(sd=sd(a), avg = mean(a)))
+}
+
+##Trasponer info_methods
+
+```
+
+```{r include=FALSE}
+wgcna<- c(count(distinct(geneWGCNA,net.colors))$n,meanCluster(geneWGCNA,geneWGCNA$net.colors,distinct(geneWGCNA,net.colors)$net.colors), sdCluster(geneWGCNA,geneWGCNA$net.colors,distinct(geneWGCNA,net.colors)$net.colors),coefVarCluster(geneWGCNA,geneWGCNA$net.colors,distinct(geneWGCNA,net.colors)$net.colors))
+wgcna<- round(wgcna,2)
+
+fuzzy<-c(count(distinct(geneFUZZY,res.fcm.cluster))$n,meanCluster(geneFUZZY,geneFUZZY$res.fcm.cluster,distinct(geneFUZZY,res.fcm.cluster)$res.fcm.cluster),sdCluster(geneFUZZY,geneFUZZY$res.fcm.cluster,distinct(geneFUZZY,res.fcm.cluster)$res.fcm.cluster), coefVarCluster(geneFUZZY,geneFUZZY$res.fcm.cluster,distinct(geneFUZZY,res.fcm.cluster)$res.fcm.cluster))
+fuzzy<- round(fuzzy,2)
+
+kmedoids<-c(count(distinct(geneKMEDOIDS,clust.data.cluster))$n,meanCluster(geneKMEDOIDS,geneKMEDOIDS$clust.data.cluster,distinct(geneKMEDOIDS,clust.data.cluster)$clust.data.cluster),sdCluster(geneKMEDOIDS,geneKMEDOIDS$clust.data.cluster,distinct(geneKMEDOIDS,clust.data.cluster)$clust.data.cluster),  coefVarCluster(geneKMEDOIDS,geneKMEDOIDS$clust.data.cluster,distinct(geneKMEDOIDS,clust.data.cluster)$clust.data.cluster))
+kmedoids<- round(kmedoids,2)
+
+DbScan<- c(count(distinct(geneDbScan,cl.cluster))$n,meanCluster(geneDbScan,geneDbScan$cl.cluster,distinct(geneDbScan,cl.cluster)$cl.cluster),sdCluster(geneDbScan,geneDbScan$cl.cluster,distinct(geneDbScan,cl.cluster)$cl.cluster), coefVarCluster(geneDbScan,geneDbScan$cl.cluster,distinct(geneDbScan,cl.cluster)$cl.cluster))
+DbScan<- round(DbScan,2)
+
+info_methods<-data.frame(wgcna,fuzzy,kmedoids,DbScan)
+val2<- c("numberOfCluster", "meanOfCLuster","standardDesviationOfCluster", "coeficientVariationOfCluster")
+rownames(info_methods)<-val2
+info_methods<- t(info_methods)
+
+```
+
+### Tabla comparativa obtenida utilizando todo el conjunto de datos.
+Adicional a la tabla se mostrará un diagrama de barras que nos permite visualizar mejor los datos. 
+
+```{r echo=FALSE}
+info_methods%>%
+  kbl() %>%
+  kable_classic_2(full_width = F)
+```
+
+
+```{r include=FALSE}
+
+GroupCluster <- function(data,cl,val) {
+a<-c()
+for (i in val){
+  a<- c(sum(with(data,cl==i)),a)}
+  return((a))
+}
+
+dwg <- data.frame(genes = GroupCluster(geneWGCNA,geneWGCNA$net.colors,distinct(geneWGCNA,net.colors)$net.colors))
+dwg$metodo <- rep("wg", length(dwg))
+dfz <- data.frame(genes= GroupCluster(geneFUZZY,geneFUZZY$res.fcm.cluster,distinct(geneFUZZY,res.fcm.cluster)$res.fcm.cluster))
+dfz$metodo <- rep("fz", length(dfz))
+dkm <- data.frame(genes= GroupCluster(geneKMEDOIDS,geneKMEDOIDS$clust.data.cluster,distinct(geneKMEDOIDS,clust.data.cluster)$clust.data.cluster))
+dkm$metodo <- rep("km", length(dkm))
+ddb <- data.frame(genes= GroupCluster(geneDbScan,geneDbScan$cl.cluster,distinct(geneDbScan,cl.cluster)$cl.cluster))
+ddb$metodo<- rep("db", length(ddb))
+d <- rbind(dwg,dfz,dkm,ddb)
+```
+
+```{r echo=FALSE}
+ggbarplot(d, x = "metodo", y = "genes", add = c("mean_se", "point"), color = "black", fill = "metodo", alpha= 0.5)
+```
+
+
+### Tabla comparativa utilizando únicamente 2000 genes. 
+Adicional a la tabla se mostrará un diagrama de barras que nos permite visualizar mejor los datos. 
+
+```{r include=FALSE}
+wgcna2<- c(count(distinct(genewgcna,net.colors))$n,meanCluster(genewgcna,genewgcna$net.colors,distinct(genewgcna,net.colors)$net.colors), sdCluster(genewgcna,genewgcna$net.colors,distinct(genewgcna,net.colors)$net.colors),coefVarCluster(genewgcna,genewgcna$net.colors,distinct(genewgcna,net.colors)$net.colors))
+wgcna2<- round(wgcna2,2)
+
+mcl2<- c(count(distinct(genemcl,modules.Cluster))$n,meanCluster(genemcl,genemcl$modules.Cluster,distinct(genemcl,modules.Cluster)$modules.Cluster),sdCluster(genemcl,genemcl$modules.Cluster,distinct(genemcl,modules.Cluster)$modules.Cluster), coefVarCluster(genemcl,genemcl$modules.Cluster,distinct(genemcl,modules.Cluster)$modules.Cluster))
+mcl2<- round(mcl2,2)
+
+fuzzy2<-c(count(distinct(genefuzzy,res.fcm.cluster))$n,meanCluster(genefuzzy,genefuzzy$res.fcm.cluster,distinct(genefuzzy,res.fcm.cluster)$res.fcm.cluster),sdCluster(genefuzzy,genefuzzy$res.fcm.cluster,distinct(genefuzzy,res.fcm.cluster)$res.fcm.cluster), coefVarCluster(genefuzzy,genefuzzy$res.fcm.cluster,distinct(genefuzzy,res.fcm.cluster)$res.fcm.cluster))
+fuzzy2<- round(fuzzy2,2)
+
+kmedoids2<-c(count(distinct(genekmedoids,clust.data.cluster))$n,meanCluster(genekmedoids,genekmedoids$clust.data.cluster,distinct(genekmedoids,clust.data.cluster)$clust.data.cluster),sdCluster(genekmedoids,genekmedoids$clust.data.cluster,distinct(genekmedoids,clust.data.cluster)$clust.data.cluster),  coefVarCluster(genekmedoids,genekmedoids$clust.data.cluster,distinct(genekmedoids,clust.data.cluster)$clust.data.cluster))
+kmedoids2<- round(kmedoids2,2)
+
+dbscan2<- c(count(distinct(genedbscan,cl.cluster))$n,meanCluster(genedbscan,genedbscan$cl.cluster,distinct(genedbscan,cl.cluster)$cl.cluster),sdCluster(genedbscan,genedbscan$cl.cluster,distinct(genedbscan,cl.cluster)$cl.cluster), coefVarCluster(genedbscan,genedbscan$cl.cluster,distinct(genedbscan,cl.cluster)$cl.cluster))
+dbscan2<- round(dbscan2,2)
+
+info_methods2<-data.frame(wgcna2,mcl2,fuzzy2,kmedoids2,dbscan2)
+val2<- c("numberOfCluster", "meanOfCLuster","standardDesviationOfCluster", "coeficientVariationOfCluster")
+rownames(info_methods2)<-val2
+info_methods2<- t(info_methods2)
+
+```
+
+```{r echo=FALSE}
+info_methods2 %>%
+  kbl() %>%
+  kable_classic_2(full_width = F)
+```
+
+
+```{r include=FALSE}
+dwg2 <- data.frame(genes = GroupCluster(genewgcna,genewgcna$net.colors,distinct(genewgcna,net.colors)$net.colors))
+dwg2$metodo <- rep("wg", length(dwg2))
+dmcl2 <- data.frame(genes= GroupCluster(genemcl,genemcl$modules.Cluster,distinct(genemcl,modules.Cluster)$modules.Cluster))
+dmcl2$metodo <- rep("mcl", length(dmcl2))
+dfz2 <- data.frame(genes= GroupCluster(genefuzzy,genefuzzy$res.fcm.cluster,distinct(genefuzzy,res.fcm.cluster)$res.fcm.cluster))
+dfz2$metodo <- rep("fz", length(dfz2))
+dkm2 <- data.frame(genes= GroupCluster(genekmedoids,genekmedoids$clust.data.cluster,distinct(genekmedoids,clust.data.cluster)$clust.data.cluster))
+dkm2$metodo <- rep("km", length(dkm2))
+ddb2 <- data.frame(genes= GroupCluster(genedbscan,genedbscan$cl.cluster,distinct(genedbscan,cl.cluster)$cl.cluster))
+ddb2$metodo<- rep("db", length(ddb2))
+d2 <- rbind(dwg2,dmcl2,dfz2,dkm2,ddb2)
+```
+
+```{r echo=FALSE}
+ggbarplot(d2, x = "metodo", y = "genes", add = c("mean_se", "point"), color = "black", fill = "metodo", alpha= 0.5)
+```
+
+## Comparación buscando genes enriquecidos
+
+Se tomarán los datasets obtenidos de los algoritmos aplicados,y se utilizará la función enrichGo para obtener la cantidad de funciones obtenidas por el enriquecimiento de cada cluster.  
+
+```{r include=FALSE}
+### Funciones para enriquecer genes: 
+filterCluster <- function(data,colname,dis){
+listt<- list()
+cluster<- c()
+for (i in 1:length(dis))
+{
+f<- filter(data, colname==dis[i])[,1]
+cluster<- bitr(f, fromType="ENSEMBL", toType="ENTREZID", OrgDb="org.Mm.eg.db")
+listt[[i]]<- c(cluster$ENTREZID)
+}
+return(listt)
+}
+
+enriquecimiento <- function(d){
+significative<- c()
+e<- c()
+enriq<- c()
+for(i in 1:length(d)){
+ e<- enrichGO(d[[i]],OrgDb= org.Mm.eg.db,ont= "MF")
+ enriq<- c(enriq,e)
+}
+for (j in 1:length(enriq)){
+  significative <- c(significative,nrow(enriq[[j]]))
+}
+return(significative)
+}
+```
+
+### Comparativa mediante diagrama de barras de todos los datos.
+
+```{r, include=FALSE}
+significativeWGCNA<- filterCluster(geneWGCNA,geneWGCNA$net.colors,distinct(geneWGCNA,net.colors)$net.colors)
+wg <- enriquecimiento(significativeWGCNA)
+significativeFUZZY<- filterCluster(geneFUZZY,geneFUZZY$res.fcm.cluster,distinct(geneFUZZY,res.fcm.cluster)$res.fcm.cluster)
+fz <- enriquecimiento(significativeFUZZY)
+significativeKMEDOIDS <- filterCluster(geneKMEDOIDS,geneKMEDOIDS$clust.data.cluster,distinct(geneKMEDOIDS,clust.data.cluster)$clust.data.cluster)
+km <- enriquecimiento(significativeKMEDOIDS)
+significativeDBSCAN <- filterCluster(geneDbScan,geneDbScan$cl.cluster,distinct(geneDbScan,cl.cluster)$cl.cluster)
+db <- enriquecimiento(significativeDBSCAN)
+```
+
+
+```{r include=FALSE}
+### Creamos un dataframe con los datos del enriquecimiento para crear un gráfico de barras.
+enrichwg <- data.frame(genes =wg)
+enrichwg$metodo <- rep("wg", length(wg))
+enrichfz <- data.frame(genes= fz)
+enrichfz$metodo <- rep("fz", length(fz))
+enrichkm <- data.frame(genes=km)
+enrichkm$metodo <- rep("km", length(km))
+enrichdb <- data.frame(genes=db)
+enrichdb$metodo<- rep("db", length(db))
+enrich <- rbind(enrichwg,enrichfz,enrichkm,enrichdb)
+#mdata <- melt(enrich, id=c("metodo","genes"))
+```
+
+Los puntos mostrarán la cantidad de funciones por cluster, mientras que el tamaño de la barra representa la media. 
+
+```{r echo=FALSE}
+ggbarplot(enrich, x = "metodo", y = "genes", add = c("mean_se", "point"), color = "black", fill = "metodo", alpha= 0.5, ylab = "funciones enriquecidas")
+```
+
+
+### Comparaciones numericas en tabla
+
+La tabla representa la media de funciones que se encuentran por cada algoritmo, el maximo de genes enriquecidos encontrados en los clusteres y la suma de todas la funciones encontradas por cada algoritmo. 
+
+```{r include=FALSE}
+#http://www.sthda.com/english/wiki/bar-plot-of-group-means-with-individual-observations
+cwgcna <- c(round(mean(wg),2),max(wg),sum(wg))
+cfuzzy <- c(round(mean(fz),2),max(fz),sum(fz))
+ckmedoids <- c(round(mean(km),2),max(km),sum(km))
+cdbScan <- c(round(mean(db),2),max(db),sum(db))
+comSignificative <- data.frame(cwgcna,cfuzzy,ckmedoids,cdbScan)
+rownames(comSignificative)<- c("mediaGenesCluster", "maximoGenesCluster", "totalGenesSignificativo")
+comSignificative<- t(comSignificative)
+```
+
+```{r echo=FALSE}
+comSignificative%>%
+  kbl() %>%
+  kable_classic_2(full_width = F)
+```
+
+### Comparativa mediante diagrama de barras de 2000 genes.
+
+```{r, include=FALSE, warning=FALSE}
+# nr funciones, media funciones, max funciones por cluster con enrichGo
+#f<- filter(geneWGCNA, geneWGCNA$net.colors==1)[,1]
+#f<- filter(geneFUZZY, geneFUZZY$res.fcm.cluster==1)[,1]
+#f <- filter(genemcl,genemcl$modules.Cluster==1)[,1]
+## ENRIQUECIMIENTO PARA 2000 GENES
+significativeWGCNA2<- filterCluster(genewgcna,genewgcna$net.colors,distinct(genewgcna,net.colors)$net.colors)
+wg2 <- enriquecimiento(significativeWGCNA2)
+
+
+significativeMCL2<- filterCluster(genemcl,genemcl$modules.Cluster,distinct(genemcl,modules.Cluster)$modules.Cluster)
+mcl2 <- enriquecimiento(significativeMCL2)
+
+significativeFUZZY2<- filterCluster(genefuzzy,genefuzzy$res.fcm.cluster,distinct(genefuzzy,res.fcm.cluster)$res.fcm.cluster)
+fz2 <- enriquecimiento(significativeFUZZY2)
+
+significativeKMEDOIDS2 <- filterCluster(genekmedoids,genekmedoids$clust.data.cluster,distinct(genekmedoids,clust.data.cluster)$clust.data.cluster)
+
+km2 <- enriquecimiento(significativeKMEDOIDS2)
+significativeDBSCAN2 <- filterCluster(genedbscan,genedbscan$cl.cluster,distinct(genedbscan,cl.cluster)$cl.cluster)
+db2 <- enriquecimiento(significativeDBSCAN2)
+```
+
+
+```{r include=FALSE}
+enrichwg2 <- data.frame(genes =wg2)
+enrichwg2$metodo <- rep("wg", length(wg2))
+enrichmcl2 <- data.frame(genes=mcl2)
+enrichmcl2$metodo <- rep("mcl",length(mcl2))
+enrichfz2 <- data.frame(genes= fz2)
+enrichfz2$metodo <- rep("fz", length(fz2))
+enrichkm2 <- data.frame(genes=km2)
+enrichkm2$metodo <- rep("km", length(km2))
+enrichdb2 <- data.frame(genes=db2)
+enrichdb2$metodo<- rep("db", length(db2))
+enrich2 <- rbind(enrichwg2,enrichmcl2,enrichfz2,enrichkm2,enrichdb2)
+#mdata <- melt(enrich, id=c("metodo","genes"))
+```
+
+Los puntos mostrarán la cantidad de funciones por cluster, mientras que el tamaño de la barra representa la media. 
+
+```{r echo=FALSE}
+ggbarplot(enrich2, x = "metodo", y = "genes", add = c("mean_se", "point"), color = "black", fill = "metodo", alpha= 0.5,ylab = "funciones enriquecidas")
+```
+
+
+
+### Comparaciones numericas en tabla para 2000 genes 
+
+La tabla representa la media de funciones que se encuentran por cada algoritmo, el maximo de genes enriquecidos encontrados en los clusteres y la suma de todas la funciones encontradas por cada algoritmo. 
+```{r include=FALSE}
+#http://www.sthda.com/english/wiki/bar-plot-of-group-means-with-individual-observations
+cwgcna <- c(round(mean(wg2),2),max(wg2),sum(wg2))
+cmcl <- c(round(mean(mcl2),2),max(mcl2),sum(mcl2))
+cfuzzy <- c(round(mean(fz2),2),max(fz2),sum(fz2))
+ckmedoids <- c(round(mean(km2),2),max(km2),sum(km2))
+cdbScan <- c(round(mean(db2),2),max(db2),sum(db2))
+comSignificative <- data.frame(cwgcna,cmcl,cfuzzy,ckmedoids,cdbScan)
+rownames(comSignificative)<- c("mediaGenesCluster", "maximoGenesCluster", "totalGenesSignificativo")
+comSignificative<- t(comSignificative)
+```
+
+```{r echo=FALSE}
+comSignificative%>%
+  kbl() %>%
+  kable_classic_2(full_width = F)
+```
+
+
+## Comparación del tiempo de ejecución. 
+
+Para la representación del gasto de tiempo por cada algoritmo se ha tomado un split de los datos de la siguiente forma: 1000,5000,7000 y el conjunto total de datos. Se ha evaluado mediante system.time el tiempo que tarda cada método en terminar de agrupar los genes en clusters. 
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/home/ema/TFG/CodigoTFG/Tiempos")
+```
+
+```{r include=FALSE}
+tiempo<- read.csv("timeExecution",header = TRUE,row.names = 1)
+pared<- tiempo[c(2,4,6,8),]
+```
+
+## Límite eje 'y' bajo.
+
+```{r echo=FALSE}
+matplot(pared, type = "l", main = "tiempos pared", ylab="tiempo ejecución", ylim = c(0,450),xlab="Cantidad de datos")
+legend("topright", inset=0.05,legend=c("WGCNA", "FUZZY","KMEDOIDS","DBSCAN","MCL"),lty=c(1,2,3,4,5), col=c(1,2,3,4,5), lwd =2)
+```
+
+## Limite eje 'y' logarítmico.
+
+```{r echo=FALSE}
+matplot(pared, type = "l", main = "tiempos pared", ylab="tiempo ejecución", log="y",xlab="Cantidad de datos")
+legend("topright", inset=0.05,legend=c("WGCNA", "FUZZY","KMEDOIDS","DBSCAN","MCL"),lty=c(1,2,3,4,5), col=c(1,2,3,4,5), lwd = 2)
+```
+
+
+### Memoria para ejecución método
+
+Para la representación del gasto de memoria por cada algoritmo se ha tomado un split de los datos de la siguiente forma: 1000,5000,7000 y el conjunto total de datos. Se ha evaluado mediante el uso de la función gc(), ejecutando un antes y un despues, se nos permitirá ver el cambio de megabytes en la memoria por el uso del método. 
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/home/ema/TFG/CodigoTFG/Memoria")
+```
+
+```{r include=FALSE}
+memoria<- read.csv("MemoryExecution",header = TRUE,row.names = 1)
+Ncells<- memoria[c(1,3,5,7),]
+Vcells<- memoria[c(2,4,6,8),]
+```
+
+## Memoria gastada Ncells
+
+### Limite eje 'y' logarítmico.
+
+```{r warning=FALSE, echo=FALSE}
+matplot(Ncells, type = "l", main = "Memoria Usada Funcion NCells", ylab="memoria gastada", log="y",xlab="Cantidad de datos")
+legend("topright",legend=c("WGCNA", "FUZZY","KMEDOIDS","DBSCAN","MCL"),col=c(1,2,3,4,5), lty=c(1,2,3,4,5),lwd = 2,inset=-0.03)
+```
+
+### Limite eje 'y' b,ajo
+```{r warning=FALSE, echo=FALSE}
+matplot(Ncells, type = "l", main = "Memoria Usada Funcion Ncells", ylab="memoria gastada",xlab="Cantidad de datos", ylim = c(0,400))
+legend("topright",legend=c("WGCNA", "FUZZY","KMEDOIDS","DBSCAN","MCL"), col=c(1,2,3,4,5),lty=c(1,2,3,4,5), lwd = 2, inset=-0.03 )
+```
+
+## Memoria gastada Vcells
+
+### Limite eje 'y' logarítmico.
+```{r warning=FALSE, echo=FALSE}
+matplot(Vcells, type = "l", main = "Memoria Usada Funcion Vcells", ylab="memoria gastada",xlab="Cantidad de datos", log="y")
+legend("topright",legend=c("WGCNA", "FUZZY","KMEDOIDS","DBSCAN","MCL"), col=c(1,2,3,4,5), lty=c(1,2,3,4,5),lwd = 2,inset=-0.03)
+
+```
+
+### Limite eje 'y' bajo
+```{r warning=FALSE, echo=FALSE}
+matplot(Vcells, type = "l", main = "Memoria Usada Funcion Vcells", ylab="memoria gastada",xlab="Cantidad de datos", ylim = c(0,1500))
+legend("topright",legend=c("WGCNA", "FUZZY","KMEDOIDS","DBSCAN","MCL"), col=c(1,2,3,4,5), lty=c(1,2,3,4,5),lwd = 2, inset=-0.03)
+```
+
+
+
+
